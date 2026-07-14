@@ -209,6 +209,91 @@ FROM
 WHERE rn = 1
 ORDER BY country;
 
+-- ==========================================================
+-- Business Question 9: Customer Contribution to Total Revenue
+-- Purpose:
+-- Calculate each customer's contribution to the company's
+-- total revenue as a percentage.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    SUM(p.amount) AS total_spent,
+    ROUND(
+        (SUM(p.amount) / (SELECT SUM(amount) FROM payment)) * 100,
+        2
+    ) AS revenue_percentage
+FROM customer c
+JOIN payment p
+    ON c.customer_id = p.customer_id
+GROUP BY
+    c.customer_id,
+    c.first_name,
+    c.last_name
+ORDER BY revenue_percentage DESC
+LIMIT 10;
+
+-- ==========================================================
+-- Business Question 10: Customer Segmentation by Spending
+-- Purpose:
+-- Classify customers into Gold, Silver, and Bronze tiers
+-- based on their total spending.
+-- This helps the business identify customer segments for
+-- targeted marketing and loyalty programs.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    SUM(p.amount) AS total_spent,
+    CASE
+        WHEN SUM(p.amount) >= 150 THEN 'Gold'
+        WHEN SUM(p.amount) >= 100 THEN 'Silver'
+        ELSE 'Bronze'
+    END AS customer_tier
+FROM customer c
+JOIN payment p
+    ON c.customer_id = p.customer_id
+GROUP BY
+    c.customer_id,
+    c.first_name,
+    c.last_name
+ORDER BY total_spent DESC;
+
+-- ==========================================================
+-- Business Question 11: Customer Spending Category
+-- Purpose:
+-- Classify customers based on whether their total spending
+-- is above or below the average customer spending.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    SUM(p.amount) AS total_spent,
+    CASE
+        WHEN SUM(p.amount) >
+            (
+                SELECT
+                    SUM(amount) / COUNT(DISTINCT customer_id)
+                FROM payment
+            )
+        THEN 'Above Average'
+        ELSE 'Below Average'
+    END AS spending_category
+FROM customer c
+JOIN payment p
+    ON c.customer_id = p.customer_id
+GROUP BY
+    c.customer_id,
+    c.first_name,
+    c.last_name
+ORDER BY total_spent DESC;
+
 
 
 
