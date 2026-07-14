@@ -3,9 +3,6 @@
 Project : DVD Rental Business Analysis
 File    : 01_customer_analysis.sql
 
-Description:
-This script analyzes customer behavior and purchasing patterns.
-
 Objective:
 Analyze customer behavior to answer key business questions:
 1. How many customers are there?
@@ -72,6 +69,146 @@ GROUP BY
     c.last_name
 ORDER BY total_rentals DESC
 LIMIT 10;
+
+-- ==========================================================
+-- Business Question 4: Customers who spent above average
+-- Purpose:
+-- Identify customers whose total spending is greater than
+-- the average spending across all customers.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    SUM(p.amount) AS total_spent
+FROM customer c
+JOIN payment p
+    ON c.customer_id = p.customer_id
+GROUP BY
+    c.customer_id,
+    c.first_name,
+    c.last_name
+HAVING SUM(p.amount) >
+(
+    SELECT AVG(total_spent)
+    FROM
+    (
+        SELECT
+            customer_id,
+            SUM(amount) AS total_spent
+        FROM payment
+        GROUP BY customer_id
+    ) AS customer_totals
+)
+ORDER BY total_spent DESC;
+
+
+-- ==========================================================
+-- Business Question 5: Which customers have never made a payment?
+-- Purpose:
+-- Identify customers who have no payment records.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name
+FROM customer c
+LEFT JOIN payment p
+    ON c.customer_id = p.customer_id
+WHERE p.payment_id IS NULL;
+
+-- Note:
+-- In the dvdrental dataset, this query returns 0 rows
+-- because every customer has at least one payment.
+
+-- ==========================================================
+-- Business Question 6: Top 10 customers by average payment amount
+-- Purpose:
+-- Identify customers who tend to make higher-value payments.
+-- This helps the business understand which customers
+-- consistently make larger payments per transaction.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    ROUND(AVG(p.amount), 2) AS average_payment
+FROM customer c
+JOIN payment p
+    ON c.customer_id = p.customer_id
+GROUP BY
+    c.customer_id,
+    c.first_name,
+    c.last_name
+ORDER BY average_payment DESC
+LIMIT 10;
+
+-- ==========================================================
+-- Business Question 7: Rank customers by total spending
+-- Purpose:
+-- Rank customers based on their total spending using
+-- the DENSE_RANK() window function.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    SUM(p.amount) AS total_spent,
+    DENSE_RANK() OVER (ORDER BY SUM(p.amount) DESC) AS customer_rank
+FROM customer c
+JOIN payment p
+    ON c.customer_id = p.customer_id
+GROUP BY
+    c.customer_id,
+    c.first_name,
+    c.last_name;
+
+
+-- ==========================================================
+-- Business Question 8: Top spending customer in each country
+-- Purpose:
+-- Identify the highest-spending customer in every country
+-- using the DENSE_RANK() window function.
+-- ==========================================================
+
+SELECT
+    country,
+    first_name,
+    last_name,
+    total_spent
+FROM
+(
+    SELECT
+        cn.country,
+        c.first_name,
+        c.last_name,
+        SUM(p.amount) AS total_spent,
+        DENSE_RANK() OVER (
+            PARTITION BY cn.country
+            ORDER BY SUM(p.amount) DESC
+        ) AS rn
+    FROM customer c
+    JOIN address a
+        ON c.address_id = a.address_id
+    JOIN city ct
+        ON a.city_id = ct.city_id
+    JOIN country cn
+        ON ct.country_id = cn.country_id
+    JOIN payment p
+        ON c.customer_id = p.customer_id
+    GROUP BY
+        c.customer_id,
+        cn.country,
+        c.first_name,
+        c.last_name
+) AS customer_ranking
+WHERE rn = 1
+ORDER BY country;
+
 
 
 
