@@ -295,6 +295,115 @@ GROUP BY
 ORDER BY total_spent DESC;
 
 
+-- ==========================================================
+-- Business Question 12: Most Recent Rental for Each Customer
+-- Purpose:
+-- Determine the latest rental date for every customer.
+-- This provides a complete customer activity report and
+-- serves as a foundation for customer recency and inactivity
+-- analysis.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    MAX(r.rental_date) AS last_rental_date
+FROM customer c
+JOIN rental r
+    ON r.customer_id = c.customer_id
+GROUP BY
+    c.customer_id,
+    c.first_name,
+    c.last_name
+ORDER BY
+    c.customer_id;
+-- ==========================================================
+-- Business Question 13: Customer Inactivity Period
+-- Purpose:
+-- Calculate the number of days since each customer's
+-- most recent rental.
+-- This helps identify inactive customers for
+-- re-engagement campaigns.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    MAX(DATE(r.rental_date)) AS last_rental_date,
+    CURRENT_DATE - MAX(DATE(r.rental_date)) AS inactive_days
+FROM customer c
+JOIN rental r
+    ON c.customer_id = r.customer_id
+GROUP BY
+    c.customer_id,
+    c.first_name,
+    c.last_name
+ORDER BY
+    inactive_days DESC;
+
+-- ==========================================================
+-- Business Question 14: First Rental Date for Each Customer
+-- Purpose:
+-- Identify when each customer made their first rental.
+-- This helps understand customer acquisition history
+-- and supports customer lifecycle analysis.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    MIN(DATE(r.rental_date)) AS first_rental_date
+FROM customer c
+JOIN rental r
+    ON c.customer_id = r.customer_id
+GROUP BY
+    c.customer_id,
+    c.first_name,
+    c.last_name
+ORDER BY
+    first_rental_date ASC;
+
+
+-- ==========================================================
+-- Business Question 15: Days Between Consecutive Rentals
+-- Purpose:
+-- Calculate the number of days between consecutive rentals
+-- for each customer.
+-- This helps analyze customer rental frequency and
+-- engagement patterns.
+-- ==========================================================
+
+WITH customer_rentals AS
+(
+    SELECT
+        c.customer_id,
+        c.first_name,
+        c.last_name,
+        DATE(r.rental_date) AS rental_date,
+        LAG(DATE(r.rental_date)) OVER
+        (
+            PARTITION BY c.customer_id
+            ORDER BY r.rental_date
+        ) AS previous_rental_date
+    FROM customer c
+    JOIN rental r
+        ON c.customer_id = r.customer_id
+)
+
+SELECT
+    customer_id,
+    first_name,
+    last_name,
+    rental_date,
+    previous_rental_date,
+    rental_date - previous_rental_date AS days_between_rentals
+FROM customer_rentals
+ORDER BY
+    customer_id,
+    rental_date;
 
 
 
