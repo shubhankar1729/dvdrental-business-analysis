@@ -405,6 +405,145 @@ ORDER BY
     customer_id,
     rental_date;
 
+-- ==========================================================
+-- Business Question 16: Monthly Rental Trend
+-- Purpose:
+-- Analyze the number of rentals made each month.
+-- This helps identify seasonal demand patterns and
+-- customer rental trends over time.
+-- ==========================================================
+
+SELECT
+    TO_CHAR(rental_date, 'YYYY-MM') AS rental_month,
+    COUNT(*) AS total_rentals
+FROM rental
+GROUP BY
+    TO_CHAR(rental_date, 'YYYY-MM')
+ORDER BY
+    rental_month;
+
+-- ==========================================================
+-- Business Question 17: Top 5 Busiest Rental Days
+-- Purpose:
+-- Identify the days with the highest rental activity.
+-- This helps the business understand peak demand periods
+-- and optimize staffing and inventory planning.
+-- ==========================================================
+
+SELECT
+    DATE(rental_date) AS rental_date,
+    COUNT(*) AS total_rentals
+FROM rental
+GROUP BY
+    DATE(rental_date)
+ORDER BY
+    total_rentals DESC
+LIMIT 5;
+
+-- ==========================================================
+-- Business Question 18: Top Spending Customer in Each Country
+-- (Using ROW_NUMBER)
+-- Purpose:
+-- Identify the highest-spending customer in each country
+-- using the ROW_NUMBER() window function.
+-- This demonstrates how ROW_NUMBER() differs from
+-- DENSE_RANK() when handling ties.
+-- ==========================================================
+
+SELECT
+    country,
+    customer_id,
+    first_name,
+    last_name,
+    total_spent
+FROM
+(
+    SELECT
+        cn.country,
+        c.customer_id,
+        c.first_name,
+        c.last_name,
+        SUM(p.amount) AS total_spent,
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY cn.country
+            ORDER BY SUM(p.amount) DESC
+        ) AS rn
+    FROM customer c
+    JOIN address a
+        ON c.address_id = a.address_id
+    JOIN city ct
+        ON a.city_id = ct.city_id
+    JOIN country cn
+        ON ct.country_id = cn.country_id
+    JOIN payment p
+        ON c.customer_id = p.customer_id
+    GROUP BY
+        cn.country,
+        c.customer_id,
+        c.first_name,
+        c.last_name
+) AS customer_ranking
+WHERE rn = 1
+ORDER BY country;
+
+-- ==========================================================
+-- Business Question 19: Top 10 Customers by Number of Payments
+-- Purpose:
+-- Identify customers who make payments most frequently.
+-- This helps understand customer purchasing behavior
+-- and transaction frequency.
+-- ==========================================================
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    COUNT(p.payment_id) AS total_payments
+FROM customer c
+JOIN payment p
+    ON c.customer_id = p.customer_id
+GROUP BY
+    c.customer_id,
+    c.first_name,
+    c.last_name
+ORDER BY
+    total_payments DESC
+LIMIT 10;
+
+-- ==========================================================
+-- Business Question 20: Customer Spending Quartiles
+-- Purpose:
+-- Divide customers into four spending groups based on
+-- their total spending using the NTILE() window function.
+-- ==========================================================
+
+WITH customer_spending AS
+(
+    SELECT
+        c.customer_id,
+        c.first_name,
+        c.last_name,
+        SUM(p.amount) AS total_spent
+    FROM customer c
+    JOIN payment p
+        ON c.customer_id = p.customer_id
+    GROUP BY
+        c.customer_id,
+        c.first_name,
+        c.last_name
+)
+
+SELECT
+    customer_id,
+    first_name,
+    last_name,
+    total_spent,
+    NTILE(4) OVER (ORDER BY total_spent DESC) AS spending_quartile
+FROM customer_spending
+ORDER BY
+    total_spent DESC;
+
 
 
 
