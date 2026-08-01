@@ -163,3 +163,331 @@ GROUP BY
 ORDER BY
     total_revenue DESC;
 
+-- ==========================================================
+-- Business Question 8: Staff Contribution to Total Revenue
+-- Purpose:
+-- Calculate each staff member's contribution to the company's
+-- total revenue.
+-- This helps evaluate employee performance and identify
+-- top revenue generators.
+-- ==========================================================
+
+SELECT
+    st.staff_id,
+    st.first_name,
+    st.last_name,
+    st.store_id,
+    ROUND(SUM(p.amount), 2) AS total_revenue,
+    ROUND(
+        SUM(p.amount) * 100.0 /
+        (SELECT SUM(amount) FROM payment),
+        2
+    ) AS revenue_percentage
+FROM payment p
+JOIN staff st
+    ON p.staff_id = st.staff_id
+GROUP BY
+    st.staff_id,
+    st.first_name,
+    st.last_name,
+    st.store_id
+ORDER BY
+    total_revenue DESC;
+
+-- ==========================================================
+-- Business Question 9: Monthly Revenue Growth
+-- Purpose:
+-- Calculate the total revenue generated each month.
+-- This serves as the foundation for analyzing
+-- month-over-month revenue growth trends.
+-- ==========================================================
+
+SELECT
+    EXTRACT(YEAR FROM p.payment_date) AS revenue_year,
+    EXTRACT(MONTH FROM p.payment_date) AS revenue_month,
+    ROUND(SUM(p.amount), 2) AS total_revenue
+FROM payment p
+GROUP BY
+    EXTRACT(YEAR FROM p.payment_date),
+    EXTRACT(MONTH FROM p.payment_date)
+ORDER BY
+    revenue_year,
+    revenue_month;
+
+-- ==========================================================
+-- Business Question 10: Top 10 Highest Revenue-Generating Films
+-- Purpose:
+-- Identify the top 10 films that generate the highest revenue.
+-- This helps the business understand which films perform best
+-- and supports inventory, licensing, and marketing decisions.
+-- ==========================================================
+
+SELECT
+    f.film_id,
+    f.title AS film_title,
+    ROUND(SUM(p.amount), 2) AS total_revenue,
+    COUNT(*) AS total_number_of_rentals,
+    ROUND(AVG(p.amount), 2) AS average_payment_amount
+FROM payment p
+JOIN rental r
+    ON p.rental_id = r.rental_id
+JOIN inventory i
+    ON r.inventory_id = i.inventory_id
+JOIN film f
+    ON i.film_id = f.film_id
+GROUP BY
+    f.film_id,
+    f.title
+ORDER BY
+    total_revenue DESC
+LIMIT 10;
+
+-- ==========================================================
+-- Business Question 11: Revenue by Day of the Week
+-- Purpose:
+-- Analyze revenue generated on each day of the week.
+-- This helps identify customer rental patterns and
+-- supports staffing and promotional decisions.
+-- ==========================================================
+
+SELECT
+    CASE
+        WHEN EXTRACT(DOW FROM payment_date) = 0 THEN 'Sunday'
+        WHEN EXTRACT(DOW FROM payment_date) = 1 THEN 'Monday'
+        WHEN EXTRACT(DOW FROM payment_date) = 2 THEN 'Tuesday'
+        WHEN EXTRACT(DOW FROM payment_date) = 3 THEN 'Wednesday'
+        WHEN EXTRACT(DOW FROM payment_date) = 4 THEN 'Thursday'
+        WHEN EXTRACT(DOW FROM payment_date) = 5 THEN 'Friday'
+        ELSE 'Saturday'
+    END AS day_of_week,
+    ROUND(SUM(p.amount), 2) AS total_revenue,
+    COUNT(*) AS total_number_of_payments,
+    ROUND(AVG(p.amount), 2) AS average_payment_amount
+FROM payment p
+GROUP BY
+    EXTRACT(DOW FROM payment_date)
+ORDER BY
+    EXTRACT(DOW FROM payment_date);
+
+-- ==========================================================
+-- Business Question 12: Revenue by Customer Country
+-- Purpose:
+-- Analyze revenue generated from customers across different
+-- countries. This helps identify high-value markets and
+-- supports regional business and marketing decisions.
+-- ==========================================================
+
+SELECT
+    cn.country,
+    ROUND(SUM(p.amount), 2) AS total_revenue,
+    COUNT(DISTINCT p.customer_id) AS total_number_of_customers,
+    ROUND(
+        SUM(p.amount) / COUNT(DISTINCT p.customer_id),
+        2
+    ) AS average_revenue_per_customer
+FROM payment p
+JOIN customer c
+    ON p.customer_id = c.customer_id
+JOIN address a
+    ON c.address_id = a.address_id
+JOIN city ct
+    ON a.city_id = ct.city_id
+JOIN country cn
+    ON ct.country_id = cn.country_id
+GROUP BY
+    cn.country
+ORDER BY
+    total_revenue DESC;
+
+
+-- ==========================================================
+-- Business Question 13: Top Customers by Revenue Ranking
+-- Purpose:
+-- Rank customers based on the total revenue they have
+-- generated. This helps identify the most valuable
+-- customers for loyalty and marketing programs.
+-- ==========================================================
+
+SELECT
+    p.customer_id,
+    c.first_name,
+    c.last_name,
+    ct.city,
+    cn.country,
+    ROUND(SUM(p.amount), 2) AS total_revenue,
+    RANK() OVER (
+        ORDER BY SUM(p.amount) DESC
+    ) AS revenue_rank
+FROM payment p
+JOIN customer c
+    ON p.customer_id = c.customer_id
+JOIN address a
+    ON c.address_id = a.address_id
+JOIN city ct
+    ON a.city_id = ct.city_id
+JOIN country cn
+    ON ct.country_id = cn.country_id
+GROUP BY
+    p.customer_id,
+    c.first_name,
+    c.last_name,
+    ct.city,
+    cn.country
+ORDER BY
+    revenue_rank;
+
+-- ==========================================================
+-- Business Question 14: Revenue by Rental Rate
+-- Purpose:
+-- Analyze revenue generated by films with different rental
+-- rates. This helps evaluate pricing strategies and identify
+-- the most profitable rental rate tiers.
+-- ==========================================================
+
+SELECT
+    f.rental_rate,
+    ROUND(SUM(p.amount), 2) AS total_revenue,
+    COUNT(p.rental_id) AS total_number_of_rentals,
+    ROUND(AVG(p.amount), 2) AS average_payment_amount
+FROM payment p
+JOIN rental r
+    ON p.rental_id = r.rental_id
+JOIN inventory i
+    ON r.inventory_id = i.inventory_id
+JOIN film f
+    ON i.film_id = f.film_id
+GROUP BY
+    f.rental_rate
+ORDER BY
+    f.rental_rate;
+
+-- ==========================================================
+-- Business Question 15: Revenue by Replacement Cost
+-- Purpose:
+-- Analyze revenue generated by films with different
+-- replacement costs. This helps evaluate whether
+-- higher-value inventory generates proportionally
+-- higher revenue.
+-- ==========================================================
+
+SELECT
+    f.replacement_cost,
+    ROUND(SUM(p.amount), 2) AS total_revenue,
+    COUNT(p.rental_id) AS total_number_of_rentals,
+    ROUND(AVG(p.amount), 2) AS average_payment_amount
+FROM payment p
+JOIN rental r
+    ON p.rental_id = r.rental_id
+JOIN inventory i
+    ON r.inventory_id = i.inventory_id
+JOIN film f
+    ON i.film_id = f.film_id
+GROUP BY
+    f.replacement_cost
+ORDER BY
+    f.replacement_cost;
+
+
+-- ==========================================================
+-- Business Question 16: Cumulative Monthly Revenue
+-- Purpose:
+-- Calculate the monthly revenue and cumulative revenue
+-- over time. This helps track the business's revenue
+-- growth throughout the year.
+-- ==========================================================
+
+WITH monthly_revenue AS (
+    SELECT
+        EXTRACT(YEAR FROM payment_date) AS revenue_year,
+        EXTRACT(MONTH FROM payment_date) AS revenue_month,
+        ROUND(SUM(amount), 2) AS monthly_revenue
+    FROM payment
+    GROUP BY
+        EXTRACT(YEAR FROM payment_date),
+        EXTRACT(MONTH FROM payment_date)
+)
+
+SELECT
+    revenue_year,
+    revenue_month,
+    monthly_revenue,
+    ROUND(
+        SUM(monthly_revenue) OVER (
+            ORDER BY revenue_year, revenue_month
+        ),
+        2
+    ) AS cumulative_revenue
+FROM monthly_revenue
+ORDER BY
+    revenue_year,
+    revenue_month;
+
+-- ==========================================================
+-- Business Question 17: Monthly Revenue Rank
+-- Purpose:
+-- Rank each month based on the total revenue generated.
+-- This helps identify the highest and lowest performing
+-- months for business revenue.
+-- ==========================================================
+
+WITH monthly_revenue AS (
+    SELECT
+        EXTRACT(YEAR FROM payment_date) AS revenue_year,
+        EXTRACT(MONTH FROM payment_date) AS revenue_month,
+        ROUND(SUM(amount), 2) AS monthly_revenue
+    FROM payment
+    GROUP BY
+        EXTRACT(YEAR FROM payment_date),
+        EXTRACT(MONTH FROM payment_date)
+)
+
+SELECT
+    revenue_year,
+    revenue_month,
+    monthly_revenue,
+    RANK() OVER (
+        ORDER BY monthly_revenue DESC
+    ) AS revenue_rank
+FROM monthly_revenue
+ORDER BY
+    monthly_revenue DESC;
+
+-- ==========================================================
+-- Business Question 18: Revenue Contribution by Film Category
+-- Purpose:
+-- Analyze the percentage contribution of each film category
+-- to the company's total revenue. This helps identify the
+-- most profitable movie categories.
+-- ==========================================================
+
+WITH category_revenue AS (
+    SELECT
+        c.name AS category_name,
+        ROUND(SUM(p.amount), 2) AS total_revenue
+    FROM payment p
+    JOIN rental r
+        ON p.rental_id = r.rental_id
+    JOIN inventory i
+        ON r.inventory_id = i.inventory_id
+    JOIN film f
+        ON i.film_id = f.film_id
+    JOIN film_category fc
+        ON f.film_id = fc.film_id
+    JOIN category c
+        ON fc.category_id = c.category_id
+    GROUP BY
+        c.name
+)
+
+SELECT
+    category_name,
+    total_revenue,
+    ROUND(
+        total_revenue * 100.0 /
+        SUM(total_revenue) OVER (),
+        2
+    ) AS revenue_percentage
+FROM category_revenue
+ORDER BY
+    total_revenue DESC;
+
