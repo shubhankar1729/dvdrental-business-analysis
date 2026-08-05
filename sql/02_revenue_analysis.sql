@@ -491,3 +491,90 @@ FROM category_revenue
 ORDER BY
     total_revenue DESC;
 
+-- ==========================================================
+-- Business Question 19: Top 5 Customers by Revenue Within Each Country
+-- Purpose:
+-- Identify the top 5 highest-value customers in each country
+-- based on the total revenue they have generated.
+-- This helps the business recognize loyal customers and
+-- design country-specific reward and retention programs.
+-- ==========================================================
+
+WITH country_ranking AS (
+    SELECT
+        cn.country,
+        c.customer_id,
+        c.first_name,
+        c.last_name,
+        ROUND(SUM(p.amount), 2) AS total_revenue,
+        DENSE_RANK() OVER (
+            PARTITION BY cn.country
+            ORDER BY SUM(p.amount) DESC
+        ) AS country_rank
+    FROM customer c
+    JOIN payment p
+        ON c.customer_id = p.customer_id
+    JOIN address a
+        ON c.address_id = a.address_id
+    JOIN city ct
+        ON a.city_id = ct.city_id
+    JOIN country cn
+        ON ct.country_id = cn.country_id
+    GROUP BY
+        cn.country,
+        c.customer_id,
+        c.first_name,
+        c.last_name
+)
+
+SELECT
+    country,
+    customer_id,
+    first_name,
+    last_name,
+    total_revenue,
+    country_rank
+FROM country_ranking
+WHERE country_rank <= 5
+ORDER BY
+    country,
+    country_rank;
+
+-- ==========================================================
+-- Business Question 20: Monthly Revenue Dashboard
+-- Purpose:
+-- Create an executive revenue dashboard showing monthly
+-- revenue, cumulative revenue, and revenue ranking.
+-- This helps management monitor business performance
+-- over time.
+-- ==========================================================
+
+WITH monthly_revenue AS (
+    SELECT
+        EXTRACT(YEAR FROM payment_date) AS revenue_year,
+        EXTRACT(MONTH FROM payment_date) AS revenue_month,
+        ROUND(SUM(amount), 2) AS monthly_revenue
+    FROM payment
+    GROUP BY
+        EXTRACT(YEAR FROM payment_date),
+        EXTRACT(MONTH FROM payment_date)
+)
+
+SELECT
+    revenue_year,
+    revenue_month,
+    monthly_revenue,
+    ROUND(
+        SUM(monthly_revenue) OVER (
+            ORDER BY revenue_year, revenue_month
+        ),
+        2
+    ) AS cumulative_revenue,
+    RANK() OVER (
+        ORDER BY monthly_revenue DESC
+    ) AS revenue_rank
+FROM monthly_revenue
+ORDER BY
+    revenue_year,
+    revenue_month;
+
